@@ -1,11 +1,14 @@
-FROM php:7.2-fpm
+FROM php:8.4-fpm
 
-# Copy composer.lock and composer.json
-COPY composer.lock composer.json /var/www/
-#COPY package.json /var/www/
-#COPY package-lock.json /var/www/
-# Set working directory
+COPY composer.json /var/www/
 WORKDIR /var/www
+
+WORKDIR /var/www
+
+    ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/install-php-extensions && sync && \
+    install-php-extensions mbstring pdo_mysql zip exif pcntl gd
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -19,38 +22,23 @@ RUN apt-get update && apt-get install -y \
     vim \
     unzip \
     git \
-    curl \
-    nodejs \
-    npm
+    curl
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install extensions
-RUN docker-php-ext-install pdo_mysql mbstring zip exif pcntl
-RUN docker-php-ext-configure gd --with-gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-png-dir=/usr/include/
-RUN docker-php-ext-install gd
-
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Add user for laravel application
 RUN groupadd -g 1000 www
 RUN useradd -u 1000 -ms /bin/bash -g www www
 
-# Copy existing application directory contents
 COPY . /var/www
 
-# Copy existing application directory permissions
-COPY --chown=www:www . /var/www
-#COPY --chown=node:node --from=build-image /home/node/app/remove_source_maps.sh /home/node/app/
-#RUN chown -R node:node .
-#USER node
 
-# Change current user to www
+COPY --chown=www:www . /var/www
+
 USER www
 
-# Expose port 9000 and start php-fpm server
-EXPOSE 9000
 EXPOSE 6001
 CMD ["php-fpm"]
